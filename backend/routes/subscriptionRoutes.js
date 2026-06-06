@@ -13,6 +13,13 @@ router.post(
     },
     subscriptionController.createCheckoutSession
   );
+
+router.post(
+  '/subscribe/confirm-session',
+  verifyToken,
+  allowRoles(['admin', 'super-admin']),
+  subscriptionController.confirmCheckoutSession
+);
   
 
 module.exports = router;

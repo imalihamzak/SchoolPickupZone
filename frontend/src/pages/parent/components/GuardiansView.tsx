@@ -1,11 +1,13 @@
-import { useState } from 'react';
-import {
-  UserGroupIcon, PhoneIcon, PencilIcon, TrashIcon, TruckIcon
-} from '@heroicons/react/24/outline';
-import axios from 'axios';
-import { toast } from 'react-toastify';
-import { API_BASE_URL } from '@/lib/api/link';
-import DeleteGuardianModal from './DeleteGuardianModal'; 
+import { useState } from "react";
+import { Car, Pencil, Phone, Save, ShieldCheck, Trash2, UserRound, X } from "lucide-react";
+import axios from "axios";
+import { toast } from "@/components/ui/toast";
+import { AdminSelect } from "@/components/ui/admin-controls";
+import { API_BASE_URL } from "@/lib/api/link";
+import DeleteGuardianModal from "./DeleteGuardianModal";
+import ParentModalPortal from "./ParentModalPortal";
+import "./parent-modal.css";
+import "./parent-workspace.css";
 
 interface Vehicle {
   id?: number;
@@ -31,202 +33,321 @@ interface GuardiansViewProps {
   onUpdate: () => void;
 }
 
+const relationOptions = [
+  { value: "", label: "Select Relation" },
+  { value: "Grandparent", label: "Grandparent" },
+  { value: "Aunt", label: "Aunt" },
+  { value: "Uncle", label: "Uncle" },
+  { value: "Family Friend", label: "Family Friend" },
+  { value: "Sibling", label: "Sibling" },
+  { value: "Other", label: "Other" },
+];
+
+const statusOptions = [
+  { value: "Active", label: "Active" },
+  { value: "Inactive", label: "Inactive" },
+];
+
+const vehicleFields = [
+  { key: "name", label: "Vehicle Name" },
+  { key: "make", label: "Make" },
+  { key: "model", label: "Model" },
+  { key: "color", label: "Color" },
+  { key: "plate_number", label: "Plate Number" },
+  { key: "year", label: "Year" },
+] as const;
+
 export default function GuardiansView({ guardians, onUpdate }: GuardiansViewProps) {
   const [editingGuardian, setEditingGuardian] = useState<Guardian | null>(null);
   const [guardianToDelete, setGuardianToDelete] = useState<Guardian | null>(null);
-
   const [form, setForm] = useState({
-    full_name: '',
-    relation: '',
-    phone: '',
-    status: 'Active',
+    full_name: "",
+    relation: "",
+    phone: "",
+    status: "Active",
     vehicle: {
-      name: '',
-      make: '',
-      model: '',
-      color: '',
-      plate_number: '',
-      year: ''
-    }
+      name: "",
+      make: "",
+      model: "",
+      color: "",
+      plate_number: "",
+      year: "",
+    },
   });
 
-  const handleEditClick = (g: Guardian) => {
-    setEditingGuardian(g);
+  const handleEditClick = (guardian: Guardian) => {
+    setEditingGuardian(guardian);
     setForm({
-      full_name: g.full_name,
-      relation: g.relation,
-      phone: g.phone,
-      status: g.status,
-      vehicle: g.vehicle ?? {
-        name: '',
-        make: '',
-        model: '',
-        color: '',
-        plate_number: '',
-        year: ''
-      }
+      full_name: guardian.full_name,
+      relation: guardian.relation,
+      phone: guardian.phone,
+      status: guardian.status || "Active",
+      vehicle: guardian.vehicle ?? {
+        name: "",
+        make: "",
+        model: "",
+        color: "",
+        plate_number: "",
+        year: "",
+      },
     });
   };
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!editingGuardian) return;
+
     try {
-      const token = localStorage.getItem('token');
-      await axios.put(`${API_BASE_URL}/guardians/${editingGuardian?.id}`, form, {
-        headers: { Authorization: `Bearer ${token}` }
+      const token = localStorage.getItem("token");
+      await axios.put(`${API_BASE_URL}/guardians/${editingGuardian.id}`, form, {
+        headers: { Authorization: `Bearer ${token}` },
       });
-      toast.success('Guardian updated');
+      toast.success("Guardian updated");
       setEditingGuardian(null);
       onUpdate();
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Update failed');
+      toast.error(err.response?.data?.error || "Update failed");
+    }
+  };
+
+  const deleteGuardian = async () => {
+    if (!guardianToDelete) return;
+
+    try {
+      const token = localStorage.getItem("token");
+      await axios.delete(`${API_BASE_URL}/guardians/${guardianToDelete.id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      toast.success("Guardian deleted");
+      setGuardianToDelete(null);
+      onUpdate();
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || "Delete failed");
     }
   };
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-lg font-semibold text-gray-900">Authorized Guardians</h2>
+    <div className="pz-parent-workspace-view">
+      <div className="pz-parent-workspace-heading">
+        <div>
+          <h2 className="pz-parent-workspace-title">Authorized Guardians</h2>
+          <div className="pz-parent-workspace-copy">Trusted contacts approved for student pickup.</div>
+        </div>
+        <span className="pz-parent-workspace-badge">
+          <span className="pz-parent-workspace-dot" />
+          {guardians.length}/2 slots used
+        </span>
+      </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {guardians.map((guardian) => (
-          <div key={guardian.id} className="bg-white border rounded-xl shadow-sm overflow-hidden">
-            <div className="p-5">
-              <div className="flex justify-between">
-                <div className="flex items-center">
-                  <div className="h-10 w-10 bg-purple-100 rounded-full flex items-center justify-center">
-                    <UserGroupIcon className="h-6 w-6 text-purple-600" />
+      {guardians.length === 0 ? (
+        <div className="pz-parent-empty-card">
+          <div className="pz-parent-empty-icon">
+            <UserRound size={22} aria-hidden="true" />
+          </div>
+          <div>
+            <div className="pz-parent-profile-name">No guardians added yet</div>
+            <div className="pz-parent-workspace-copy">Add an authorized contact for pickup access.</div>
+          </div>
+        </div>
+      ) : (
+        <div className="pz-parent-workspace-grid">
+          {guardians.map((guardian) => (
+            <div key={guardian.id} className="pz-parent-profile-card">
+              <div className="pz-parent-profile-card-head">
+                <div className="pz-parent-profile-identity">
+                  <div className="pz-parent-profile-avatar">
+                    <UserRound size={25} aria-hidden="true" />
                   </div>
-                  <div className="ml-3">
-                    <h3 className="text-lg font-medium text-gray-900">{guardian.full_name}</h3>
-                    <p className="text-sm text-gray-500">{guardian.relation}</p>
+                  <div className="min-w-0">
+                    <h3 className="pz-parent-profile-name">{guardian.full_name}</h3>
+                    <p className="pz-parent-profile-meta">{guardian.relation}</p>
                   </div>
                 </div>
-                <div className="flex space-x-2">
-                  <button className="text-gray-400 hover:text-gray-600" onClick={() => handleEditClick(guardian)} title="Edit">
-                    <PencilIcon className="h-5 w-5" />
+                <div className="pz-parent-profile-actions">
+                  <button className="pz-parent-icon-button" onClick={() => handleEditClick(guardian)} title="Edit">
+                    <Pencil size={17} aria-hidden="true" />
                   </button>
                   <button
-                    className="text-gray-400 hover:text-red-600"
+                    className="pz-parent-icon-button danger"
                     title="Delete"
                     onClick={() => setGuardianToDelete(guardian)}
-                    >
-                    <TrashIcon className="h-5 w-5" />
+                  >
+                    <Trash2 size={17} aria-hidden="true" />
                   </button>
                 </div>
               </div>
 
-              <div className="mt-4 pt-4 border-t space-y-2 text-sm text-gray-700">
-                <div className="flex items-center">
-                  <PhoneIcon className="h-5 w-5 text-gray-400" />
-                  <span className="ml-2">{guardian.phone}</span>
+              <div className="pz-parent-profile-body">
+                <div className="pz-parent-info-panel safe">
+                  <div className="pz-parent-info-label">
+                    <Phone size={15} aria-hidden="true" />
+                    Contact
+                  </div>
+                  <div className="pz-parent-info-copy">{guardian.phone || "No phone number saved"}</div>
                 </div>
 
-                {guardian.vehicle && (
-                  <div className="mt-2 border-t pt-2 space-y-1">
-                    <div className="flex items-center font-medium text-gray-800">
-                      <TruckIcon className="h-5 w-5 mr-2" />
-                      Vehicle: {guardian.vehicle.name}
+                {guardian.vehicle ? (
+                  <div className="pz-parent-info-panel">
+                    <div className="pz-parent-info-label">
+                      <Car size={15} aria-hidden="true" />
+                      Vehicle Information
                     </div>
-                    <div>Make: {guardian.vehicle.make}</div>
-                    <div>Model: {guardian.vehicle.model}</div>
-                    <div>Color: {guardian.vehicle.color}</div>
-                    <div>Plate: {guardian.vehicle.plate_number}</div>
-                    <div>Year: {guardian.vehicle.year}</div>
+                    <div className="pz-parent-info-copy">
+                      {guardian.vehicle.name || "Vehicle"} - {guardian.vehicle.color || "Color N/A"} - Plate{" "}
+                      {guardian.vehicle.plate_number || "N/A"}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="pz-parent-info-panel notice">
+                    <div className="pz-parent-info-label">
+                      <Car size={15} aria-hidden="true" />
+                      Vehicle Information
+                    </div>
+                    <div className="pz-parent-info-copy">No vehicle details saved yet.</div>
                   </div>
                 )}
 
-                <div className="flex justify-between items-center pt-3 border-t mt-3">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${guardian.status === 'Active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
-                    {guardian.status}
-                  </span>
+                <div className="pz-parent-metric-row">
+                  <div className="pz-parent-metric">
+                    <div className="pz-parent-metric-label">Status</div>
+                    <div className="pz-parent-metric-value">{guardian.status || "Active"}</div>
+                  </div>
+                  <div className="pz-parent-metric">
+                    <div className="pz-parent-metric-label">Pickup Role</div>
+                    <div className="pz-parent-metric-value">{guardian.relation || "Guardian"}</div>
+                  </div>
+                </div>
+
+                <div className="pz-parent-profile-footer">
+                  <button className="pz-parent-primary-action" onClick={() => handleEditClick(guardian)}>
+                    <ShieldCheck size={15} aria-hidden="true" />
+                    Manage Guardian
+                  </button>
                 </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Edit Guardian Modal */}
-      {editingGuardian && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
-          <div className="bg-white p-6 rounded-lg w-full max-w-lg overflow-y-auto max-h-[90vh]">
-            <h2 className="text-lg font-bold mb-4">Edit Guardian Info</h2>
-
-            <div className="space-y-3">
-              {['full_name', 'relation', 'phone', 'status'].map((field) => (
-                <div key={field}>
-                  <label className="block text-sm text-gray-700 capitalize">{field.replace('_', ' ')}</label>
-                  {field === 'relation' || field === 'status' ? (
-                    <select
-                      className="w-full border p-2 rounded"
-                      value={(form as any)[field]}
-                      onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-                    >
-                      <option value="">Select {field}</option>
-                      {field === 'relation' && ['Grandparent', 'Aunt', 'Uncle', 'Family Friend', 'Sibling', 'Other'].map(option => (
-                        <option key={option} value={option}>{option}</option>
-                      ))}
-                      {field === 'status' && ['Active', 'Inactive'].map(option => (
-                        <option key={option} value={option}>{option}</option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      className="w-full border p-2 rounded"
-                      value={(form as any)[field]}
-                      onChange={(e) => setForm({ ...form, [field]: e.target.value })}
-                    />
-                  )}
-                </div>
-              ))}
-
-              <h3 className="pt-2 font-semibold text-gray-800">Vehicle Info</h3>
-              {Object.entries(form.vehicle).map(([key, value]) => (
-                <div key={key}>
-                  <label className="block text-sm text-gray-700 capitalize">{key.replace('_', ' ')}</label>
-                  <input
-                    className="w-full border p-2 rounded"
-                    value={value}
-                    onChange={(e) =>
-                      setForm({ ...form, vehicle: { ...form.vehicle, [key]: e.target.value } })
-                    }
-                  />
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-6 flex justify-end gap-2">
-              <button onClick={() => setEditingGuardian(null)} className="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300">
-                Cancel
-              </button>
-              <button onClick={handleSubmit} className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-                Save
-              </button>
-            </div>
-          </div>
+          ))}
         </div>
       )}
 
-{guardianToDelete && (
-  <DeleteGuardianModal
-    isOpen={true}
-    onClose={() => setGuardianToDelete(null)}
-    guardian={guardianToDelete}
-    onDelete={async () => {
-      try {
-        const token = localStorage.getItem('token');
-        await axios.delete(`${API_BASE_URL}/guardians/${guardianToDelete.id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        toast.success('Guardian deleted');
-        setGuardianToDelete(null);
-        onUpdate();
-      } catch (err: any) {
-        toast.error(err.response?.data?.error || 'Delete failed');
-      }
-    }}
-  />
-)}
+      {editingGuardian && (
+        <ParentModalPortal>
+          <div className="pz-parent-modal-overlay">
+            <div className="pz-parent-modal wide" role="dialog" aria-modal="true" aria-labelledby="edit-guardian-title">
+              <div className="pz-parent-modal-head">
+                <div className="pz-parent-modal-title-row">
+                  <div className="pz-parent-modal-icon">
+                    <UserRound size={20} aria-hidden="true" />
+                  </div>
+                  <div>
+                    <h2 className="pz-parent-modal-title" id="edit-guardian-title">
+                      Edit Guardian
+                    </h2>
+                    <div className="pz-parent-modal-subtitle">
+                      Update pickup authorization, contact, and vehicle details.
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setEditingGuardian(null)}
+                  className="pz-parent-modal-close"
+                  aria-label="Close"
+                >
+                  <X size={18} aria-hidden="true" />
+                </button>
+              </div>
 
+              <form onSubmit={handleSubmit} className="pz-parent-form">
+                <div className="pz-parent-modal-body">
+                  <div className="pz-parent-form">
+                    <div className="pz-parent-form-grid">
+                      <div className="pz-parent-field">
+                        <label htmlFor="edit-guardian-name">Full Name</label>
+                        <input
+                          id="edit-guardian-name"
+                          value={form.full_name}
+                          onChange={(e) => setForm({ ...form, full_name: e.target.value })}
+                        />
+                      </div>
+                      <div className="pz-parent-field">
+                        <label htmlFor="edit-guardian-phone">Phone</label>
+                        <input
+                          id="edit-guardian-phone"
+                          value={form.phone}
+                          onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                        />
+                      </div>
+                      <div className="pz-parent-field">
+                        <label htmlFor="edit-guardian-relation">Relation</label>
+                        <AdminSelect
+                          id="edit-guardian-relation"
+                          value={form.relation}
+                          onChange={(value) => setForm({ ...form, relation: value })}
+                          options={relationOptions}
+                          className="full"
+                          ariaLabel="Guardian relation"
+                        />
+                      </div>
+                      <div className="pz-parent-field">
+                        <label htmlFor="edit-guardian-status">Status</label>
+                        <AdminSelect
+                          id="edit-guardian-status"
+                          value={form.status}
+                          onChange={(value) => setForm({ ...form, status: value })}
+                          options={statusOptions}
+                          className="full"
+                          ariaLabel="Guardian status"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="pz-parent-section">
+                      <h3 className="pz-parent-section-title">
+                        <Car size={16} aria-hidden="true" />
+                        Vehicle Info
+                      </h3>
+                      <div className="pz-parent-form-grid three">
+                        {vehicleFields.map((field) => (
+                          <div className="pz-parent-field" key={field.key}>
+                            <label htmlFor={`edit-guardian-vehicle-${field.key}`}>{field.label}</label>
+                            <input
+                              id={`edit-guardian-vehicle-${field.key}`}
+                              value={form.vehicle[field.key]}
+                              onChange={(e) =>
+                                setForm({ ...form, vehicle: { ...form.vehicle, [field.key]: e.target.value } })
+                              }
+                            />
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pz-parent-modal-footer">
+                  <button type="button" onClick={() => setEditingGuardian(null)} className="pz-parent-modal-button">
+                    Cancel
+                  </button>
+                  <button type="submit" className="pz-parent-modal-button primary">
+                    <Save size={15} aria-hidden="true" />
+                    Save Changes
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </ParentModalPortal>
+      )}
+
+      {guardianToDelete && (
+        <DeleteGuardianModal
+          isOpen
+          onClose={() => setGuardianToDelete(null)}
+          guardian={guardianToDelete}
+          onDelete={deleteGuardian}
+        />
+      )}
     </div>
   );
 }

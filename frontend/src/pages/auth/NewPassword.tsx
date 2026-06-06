@@ -1,20 +1,24 @@
 import { useState } from 'react'
-import { useNavigate, useSearchParams, useLocation } from 'react-router-dom'
-import { toast } from 'react-toastify'
-import { Button } from '@/components/ui/button'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import axios from 'axios'
+import { toast } from '@/components/ui/toast';
+import {
+  ArrowLeft,
+  ArrowRight,
+  Check,
+  CheckCircle2,
+  CircleAlert,
+  CircleX,
+  Eye,
+  EyeOff,
+  LockKeyhole,
+} from 'lucide-react'
 import { API_BASE_URL } from '@/lib/api/link'
-import { 
-  LockClosedIcon, 
-  EyeIcon, 
-  EyeSlashIcon,
-  CheckCircleIcon,
-  XCircleIcon,
-  ExclamationTriangleIcon
-} from '@heroicons/react/24/outline'
-import clsx from 'clsx'
+import AuthShell from './AuthShell'
 
-export default function ResetPassword() {
+type Strength = 'weak' | 'medium' | 'strong'
+
+export default function NewPassword() {
   const [searchParams] = useSearchParams()
   const token = searchParams.get('token') || ''
   const [password, setPassword] = useState('')
@@ -22,25 +26,33 @@ export default function ResetPassword() {
   const [showPassword, setShowPassword] = useState(false)
   const [showConfirmPassword, setShowConfirmPassword] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [success, setSuccess] = useState(false)
   const navigate = useNavigate()
   const location = useLocation()
 
-  const getPasswordStrength = (password: string) => {
-    if (password.length >= 8 && /[A-Z]/.test(password) && /\d/.test(password)) return 'strong'
-    if (password.length >= 6) return 'medium'
+  const getPasswordStrength = (value: string): Strength => {
+    if (value.length >= 8 && /[A-Z]/.test(value) && /\d/.test(value)) return 'strong'
+    if (value.length >= 6) return 'medium'
     return 'weak'
   }
+
   const passwordStrength = getPasswordStrength(password)
-  const passwordsMatch = password && confirmPassword && password === confirmPassword
-  const passwordsMismatch = confirmPassword && password !== confirmPassword
+  const passwordsMatch = Boolean(password && confirmPassword && password === confirmPassword)
+  const passwordsMismatch = Boolean(confirmPassword && password !== confirmPassword)
+
+  const strengthCopy: Record<Strength, { label: string; icon: JSX.Element; fill: string }> = {
+    weak: { label: 'Weak password', icon: <CircleX aria-hidden="true" />, fill: 'weak' },
+    medium: { label: 'Medium strength', icon: <CircleAlert aria-hidden="true" />, fill: 'medium' },
+    strong: { label: 'Strong password', icon: <CheckCircle2 aria-hidden="true" />, fill: 'strong' },
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
     setLoading(true)
 
-    const searchParams = new URLSearchParams(location.search)
-    const token = searchParams.get('token')
-    const email = searchParams.get('email')
+    const params = new URLSearchParams(location.search)
+    const token = params.get('token')
+    const email = params.get('email')
 
     if (!token || !email) {
       toast.error('Invalid or missing token/email')
@@ -62,6 +74,7 @@ export default function ResetPassword() {
       })
 
       toast.success('Password set successfully!')
+      setSuccess(true)
       setTimeout(() => navigate('/login'), 1500)
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to set password.')
@@ -71,167 +84,98 @@ export default function ResetPassword() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 flex items-center justify-center px-4 py-8">
-      <div className="w-full max-w-md rounded-2xl bg-white shadow-2xl p-8 sm:p-10 border border-gray-100">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <img className="mx-auto h-16 w-auto mb-4" src="/logo.png" alt="School Pickup" />
-          <h2 className="text-3xl font-extrabold text-gray-900 mb-2">Set New Password</h2>
-          <p className="text-sm text-gray-500">
-            Create a strong password to secure your account
-          </p>
+    <AuthShell
+      activeTab="login"
+      hideTabs
+      centerContent
+      title={success ? <>Password <span className="accent">Set.</span></> : <>Set New <span className="accent">Password.</span></>}
+      subtitle={success ? 'Your password has been saved. Redirecting to sign in...' : 'Create a strong password to activate secure access to Pickup Zone.'}
+    >
+      {success ? (
+        <div className="pz-success">
+          <div className="pz-success-circle"><Check aria-hidden="true" /></div>
+          <div className="pz-success-title">Password set</div>
+          <div className="pz-success-sub">You can now sign in with your new password.</div>
+          <Link to="/login" className="pz-submit pz-secondary" style={{ marginTop: 24 }}>
+            <ArrowLeft aria-hidden="true" size={16} /> Back to Login
+          </Link>
         </div>
+      ) : (
+        <form className="pz-auth-form" onSubmit={handleSubmit}>
+          {!token && (
+            <div className="pz-alert">This password setup link is missing a token.</div>
+          )}
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-5">
-          {/* New Password */}
-          <div>
-            <label htmlFor="password" className="block text-sm font-semibold text-gray-700 mb-2">
-              New Password
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <LockClosedIcon className="h-5 w-5 text-gray-400" />
-              </div>
+          <label className="pz-field">
+            <span className="pz-label">New Password</span>
+            <span className="pz-field-wrap">
+              <span className="pz-field-icon"><LockKeyhole aria-hidden="true" /></span>
               <input
-                id="password"
+                className="pz-input"
                 name="password"
                 type={showPassword ? 'text' : 'password'}
-                required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter your new password"
-                className="block w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500 transition-all text-sm"
+                autoComplete="new-password"
+                required
               />
-              <button
-                type="button"
-                onClick={() => setShowPassword(prev => !prev)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                {showPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+              <button className="pz-pass-toggle" type="button" onClick={() => setShowPassword((prev) => !prev)}>
+                {showPassword ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
               </button>
-            </div>
-            {password && (
-              <div className="mt-2 flex items-center gap-2">
-                <div className="flex items-center gap-1 text-xs">
-                  {passwordStrength === 'weak' && (
-                    <>
-                      <XCircleIcon className="h-4 w-4 text-red-500" />
-                      <span className="text-red-500 font-medium">Weak Password</span>
-                    </>
-                  )}
-                  {passwordStrength === 'medium' && (
-                    <>
-                      <ExclamationTriangleIcon className="h-4 w-4 text-yellow-500" />
-                      <span className="text-yellow-600 font-medium">Medium Strength</span>
-                    </>
-                  )}
-                  {passwordStrength === 'strong' && (
-                    <>
-                      <CheckCircleIcon className="h-4 w-4 text-green-500" />
-                      <span className="text-green-600 font-medium">Strong Password</span>
-                    </>
-                  )}
-                </div>
-                <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                  <div className={clsx(
-                    'h-full transition-all duration-300',
-                    passwordStrength === 'weak' && 'w-1/3 bg-red-500',
-                    passwordStrength === 'medium' && 'w-2/3 bg-yellow-500',
-                    passwordStrength === 'strong' && 'w-full bg-green-500'
-                  )}></div>
-                </div>
-              </div>
-            )}
-            <p className="mt-2 text-xs text-gray-500">
-              Use at least 8 characters with uppercase, lowercase, and numbers
-            </p>
-          </div>
+            </span>
+          </label>
 
-          {/* Confirm Password */}
-          <div>
-            <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700 mb-2">
-              Confirm Password
-            </label>
-            <div className="relative">
-              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <LockClosedIcon className="h-5 w-5 text-gray-400" />
+          {password && (
+            <div className="pz-meter">
+              <div className="pz-meter-row">
+                {strengthCopy[passwordStrength].icon}
+                {strengthCopy[passwordStrength].label}
               </div>
+              <div className="pz-meter-track">
+                <div className={`pz-meter-fill ${strengthCopy[passwordStrength].fill}`} />
+              </div>
+            </div>
+          )}
+
+          <label className="pz-field">
+            <span className="pz-label">Confirm Password</span>
+            <span className="pz-field-wrap">
+              <span className="pz-field-icon"><LockKeyhole aria-hidden="true" /></span>
               <input
-                id="confirmPassword"
+                className="pz-input"
                 name="confirmPassword"
                 type={showConfirmPassword ? 'text' : 'password'}
-                required
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 placeholder="Confirm your new password"
-                className={clsx(
-                  'block w-full pl-10 pr-10 py-3 border rounded-lg shadow-sm placeholder-gray-400 focus:outline-none focus:ring-2 transition-all text-sm',
-                  passwordsMismatch 
-                    ? 'border-red-300 focus:ring-red-500 focus:border-red-500' 
-                    : passwordsMatch
-                    ? 'border-green-300 focus:ring-green-500 focus:border-green-500'
-                    : 'border-gray-300 focus:ring-green-500 focus:border-green-500'
-                )}
+                autoComplete="new-password"
+                required
               />
-              <button
-                type="button"
-                onClick={() => setShowConfirmPassword(prev => !prev)}
-                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
-              >
-                {showConfirmPassword ? <EyeSlashIcon className="h-5 w-5" /> : <EyeIcon className="h-5 w-5" />}
+              <button className="pz-pass-toggle" type="button" onClick={() => setShowConfirmPassword((prev) => !prev)}>
+                {showConfirmPassword ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
               </button>
-            </div>
-            {confirmPassword && (
-              <div className="mt-2 flex items-center gap-2 text-xs">
-                {passwordsMatch ? (
-                  <div className="flex items-center gap-1 text-green-600">
-                    <CheckCircleIcon className="h-4 w-4" />
-                    <span className="font-medium">Passwords match</span>
-                  </div>
-                ) : passwordsMismatch ? (
-                  <div className="flex items-center gap-1 text-red-600">
-                    <XCircleIcon className="h-4 w-4" />
-                    <span className="font-medium">Passwords do not match</span>
-                  </div>
-                ) : null}
-              </div>
-            )}
+            </span>
+          </label>
+
+          {passwordsMatch && (
+            <div className="pz-validation-line success"><CheckCircle2 aria-hidden="true" /> Passwords match</div>
+          )}
+          {passwordsMismatch && (
+            <div className="pz-validation-line error"><CircleX aria-hidden="true" /> Passwords do not match</div>
+          )}
+
+          <div className="pz-note">Use at least 8 characters with uppercase, lowercase, and numbers.</div>
+
+          <button className="pz-submit" type="submit" disabled={loading || !passwordsMatch || !password}>
+            {loading ? <><span className="pz-spinner" /> Setting...</> : <>Set Password <ArrowRight aria-hidden="true" size={16} /></>}
+          </button>
+
+          <div className="pz-switch">
+            Remember your password? <Link to="/login">Back to Login</Link>
           </div>
-
-          {/* Submit Button */}
-          <Button 
-            type="submit" 
-            className="w-full py-3 rounded-lg text-base font-semibold shadow-md hover:shadow-lg transition-all duration-200" 
-            disabled={loading || !passwordsMatch || !password}
-          >
-            {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                Setting Password...
-              </span>
-            ) : (
-              'Set Password'
-            )}
-          </Button>
         </form>
-
-        {/* Back to Login */}
-        <div className="mt-6 pt-6 border-t border-gray-200">
-          <p className="text-center text-sm text-gray-600">
-            Remember your password?{' '}
-            <button
-              onClick={() => navigate('/login')}
-              className="font-semibold text-green-600 hover:text-green-700 hover:underline transition-colors"
-            >
-              Back to Login
-            </button>
-          </p>
-        </div>
-      </div>
-    </div>
+      )}
+    </AuthShell>
   )
 }

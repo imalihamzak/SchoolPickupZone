@@ -1,20 +1,48 @@
-import { useState, useEffect } from 'react';
-import { BuildingOfficeIcon, XMarkIcon, CheckCircleIcon } from '@heroicons/react/24/outline';
-import axios from 'axios';
-import { toast } from 'react-toastify';
-import { API_BASE_URL } from '@/lib/api/link';
+import { useEffect, useMemo, useState } from "react";
+import { Building2, CheckCircle2, X } from "lucide-react";
+import axios from "axios";
+import { toast } from "@/components/ui/toast";
+import { API_BASE_URL } from "@/lib/api/link";
+import { AdminSelect } from "@/components/ui/admin-controls";
+import "../../super-admin-theme.css";
+
 type School = {
-    id: string;
-    name: string;
-    address?: string; // used locally in modal
-    location?: string; // from backend
-    studentCount?: number; // used in modal
-    student_count?: number; // from backend
-    parentCount: number;
-    status: string;
-    subscriptionEnds: string;
-  };
-  
+  id: string | number;
+  name: string;
+  address?: string;
+  location?: string;
+  studentCount?: number;
+  student_count?: number;
+  plan_id?: number | null;
+  plan_name?: string | null;
+  billing_interval?: "monthly" | "yearly";
+  max_students?: number | null;
+  max_families?: number | null;
+  max_guards?: number | null;
+  used_students?: number;
+  used_families?: number;
+  used_guards?: number;
+  parentCount: number;
+  status: string;
+  subscriptionEnds: string;
+  pending_plan_id?: number | null;
+  pending_plan_name?: string | null;
+  pending_billing_interval?: "monthly" | "yearly" | null;
+};
+
+type PackageOption = {
+  id: number;
+  name: string;
+  max_students?: number | null;
+  max_families?: number | null;
+  max_guards?: number | null;
+  is_active?: boolean;
+};
+
+const billingOptions = [
+  { value: "monthly", label: "Monthly Billing" },
+  { value: "yearly", label: "Yearly Billing" },
+];
 
 type Props = {
   isOpen: boolean;
@@ -24,48 +52,112 @@ type Props = {
 };
 
 export default function AddEditSchoolModal({ isOpen, onClose, selectedSchool, onSave }: Props) {
-  if (!isOpen) return null;
-
-  const isEdit = !!selectedSchool;
-
-  const [schoolName, setSchoolName] = useState('');
-  const [address, setAddress] = useState('');
+  const isEdit = Boolean(selectedSchool);
+  const [schoolName, setSchoolName] = useState("");
+  const [address, setAddress] = useState("");
   const [studentCount, setStudentCount] = useState(0);
+  const [packageId, setPackageId] = useState("");
+  const [billingInterval, setBillingInterval] = useState<"monthly" | "yearly">("monthly");
+  const [packages, setPackages] = useState<PackageOption[]>([]);
 
   useEffect(() => {
     if (selectedSchool) {
       setSchoolName(selectedSchool.name);
-      setAddress(selectedSchool.location || selectedSchool.address || '');
+      setAddress(selectedSchool.location || selectedSchool.address || "");
       setStudentCount(selectedSchool.student_count || selectedSchool.studentCount || 0);
+      setPackageId(selectedSchool.pending_plan_id ? String(selectedSchool.pending_plan_id) : selectedSchool.plan_id ? String(selectedSchool.plan_id) : "");
+      setBillingInterval(selectedSchool.pending_billing_interval || selectedSchool.billing_interval || "monthly");
     } else {
-      setSchoolName('');
-      setAddress('');
+      setSchoolName("");
+      setAddress("");
       setStudentCount(0);
+      setPackageId("");
+      setBillingInterval("monthly");
     }
-  }, [selectedSchool]);
-  
+  }, [selectedSchool, isOpen]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const fetchPackages = async () => {
+      try {
+        const token = localStorage.getItem("token");
+        const response = await axios.get(`${API_BASE_URL}/superadmin/plans`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setPackages(Array.isArray(response.data) ? response.data : []);
+      } catch (error) {
+        console.error("Failed to fetch packages:", error);
+      }
+    };
+
+    fetchPackages();
+  }, [isOpen]);
+
+  const packageOptions = useMemo(
+    () => [
+      { value: "", label: "Select package", disabled: true },
+      ...packages.map((item) => ({
+        value: String(item.id),
+        label: item.is_active === false ? `${item.name} (inactive)` : item.name,
+        disabled: item.is_active === false,
+      })),
+    ],
+    [packages]
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    const selectedPackage = packages.find((item) => String(item.id) === packageId);
+
+    if (!selectedPackage) {
+      toast.error("A subscription package is required for every school.");
+      return;
+    }
+
+    const currentUsage = {
+      students: Math.max(studentCount, Number(selectedSchool?.used_students || 0)),
+      families: Number(selectedSchool?.used_families || 0),
+      guards: Number(selectedSchool?.used_guards || 0),
+    };
+    const limitChecks = [
+      { label: "students", usage: currentUsage.students, limit: selectedPackage.max_students },
+      { label: "families", usage: currentUsage.families, limit: selectedPackage.max_families },
+      { label: "guards", usage: currentUsage.guards, limit: selectedPackage.max_guards },
+    ];
+    const exceededLimit = limitChecks.find(
+      (check) => check.limit !== null && check.limit !== undefined && check.usage > check.limit
+    );
+
+    if (exceededLimit) {
+      toast.error(
+        `${selectedPackage.name} allows ${exceededLimit.limit} ${exceededLimit.label}, but this school uses ${exceededLimit.usage}. Choose a higher package or reduce usage first.`
+      );
+      return;
+    }
 
     const schoolData = {
       name: schoolName,
       location: address,
       student_count: studentCount,
+      plan_id: packageId ? Number(packageId) : null,
+      billing_interval: billingInterval,
     };
 
     const updatedSchool: School = {
-        id: selectedSchool?.id || Math.random().toString(),
-        name: schoolName,
-        address, // this stays for UI purposes
-        studentCount,
-        parentCount: selectedSchool?.parentCount || 0,
-        status: selectedSchool?.status || 'active',
-        subscriptionEnds: selectedSchool?.subscriptionEnds || 'Dec 31, 2025',
-      };
-      
+      id: selectedSchool?.id || Math.random().toString(),
+      name: schoolName,
+      address,
+      studentCount,
+      plan_id: packageId ? Number(packageId) : null,
+      plan_name: selectedPackage?.name || null,
+      billing_interval: billingInterval,
+      parentCount: selectedSchool?.parentCount || 0,
+      status: selectedSchool?.status || "active",
+      subscriptionEnds: selectedSchool?.subscriptionEnds || "Dec 31, 2025",
+    };
 
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem("token");
 
     try {
       if (selectedSchool) {
@@ -74,104 +166,130 @@ export default function AddEditSchoolModal({ isOpen, onClose, selectedSchool, on
           schoolData,
           { headers: { Authorization: `Bearer ${token}` } }
         );
-        toast.success('School updated successfully!');
+        toast.success("School updated successfully!");
       } else {
-        await axios.post(
-          `${API_BASE_URL}/superadmin/schools`,
-          schoolData,
-          { headers: { Authorization: `Bearer ${token}` } }
-        );
-        toast.success('School created successfully!');
+        await axios.post(`${API_BASE_URL}/superadmin/schools`, schoolData, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        toast.success("School created successfully!");
       }
 
       onSave(updatedSchool);
       onClose();
     } catch (error) {
-      console.error('Failed to save school:', error);
-      toast.error('Failed to save school. Check console for details.');
+      console.error("Failed to save school:", error);
+      const message = axios.isAxiosError(error)
+        ? error.response?.data?.error || "Failed to save school."
+        : "Failed to save school.";
+      toast.error(message);
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 overflow-y-auto">
-      <div className="flex min-h-full items-center justify-center p-4">
-        <div
-          className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity"
-          onClick={onClose}
-        />
-        <div className="relative transform overflow-hidden rounded-lg bg-white shadow-xl transition-all max-w-3xl w-full">
-          {/* Header */}
-          <div className="bg-gray-50 py-4 px-6 flex items-center justify-between border-b border-gray-200">
-            <div className="flex items-center">
-              <BuildingOfficeIcon className="h-6 w-6 text-indigo-600 mr-2" />
-              <h3 className="text-lg font-medium text-gray-900">{isEdit ? 'Edit School' : 'Add New School'}</h3>
-            </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-500">
-              <XMarkIcon className="h-6 w-6" />
-            </button>
-          </div>
+  if (!isOpen) return null;
 
-          {/* Form Body */}
-          <form onSubmit={handleSubmit}>
-            <div className="px-6 py-5">
-              <div className="grid grid-cols-1 gap-y-6 gap-x-4 sm:grid-cols-6">
-                <div className="sm:col-span-3">
-                  <label htmlFor="school-name" className="block text-sm font-medium text-gray-700">School Name</label>
+  return (
+    <div className="pz-super-modal-overlay">
+      <div className="pz-super-modal" role="dialog" aria-modal="true" aria-labelledby="school-modal-title">
+        <div className="pz-super-modal-head">
+          <div className="pz-super-modal-title-row">
+            <div className="pz-super-modal-icon">
+              <Building2 size={20} aria-hidden="true" />
+            </div>
+            <div>
+              <h2 className="pz-super-modal-title" id="school-modal-title">
+                {isEdit ? "Edit School" : "Add School"}
+              </h2>
+              <div className="pz-super-modal-subtitle">
+                {isEdit ? "Update the selected school record." : "Create a new school in the platform registry."}
+              </div>
+            </div>
+          </div>
+          <button type="button" onClick={onClose} className="pz-super-modal-close" aria-label="Close">
+            <X size={18} aria-hidden="true" />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="pz-super-form">
+          <div className="pz-super-modal-body">
+            <div className="pz-super-form">
+              <div className="pz-super-form-grid">
+                <div className="pz-super-field">
+                  <label htmlFor="school-name">
+                    School Name <span className="pz-super-required">*</span>
+                  </label>
                   <input
                     type="text"
                     id="school-name"
                     value={schoolName}
                     onChange={(e) => setSchoolName(e.target.value)}
                     placeholder="Enter school name"
-                    className="mt-1 block w-full rounded-md border-2 border-gray-300 bg-white px-4 py-2.5 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    required
                   />
                 </div>
 
-                <div className="sm:col-span-3">
-                  <label htmlFor="address" className="block text-sm font-medium text-gray-700">Address</label>
+                <div className="pz-super-field">
+                  <label htmlFor="school-location">Address / Location</label>
                   <input
                     type="text"
-                    id="address"
+                    id="school-location"
                     value={address}
                     onChange={(e) => setAddress(e.target.value)}
                     placeholder="123 Main St"
-                    className="mt-1 block w-full rounded-md border-2 border-gray-300 bg-white px-4 py-2.5 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
                   />
                 </div>
 
-                <div className="sm:col-span-3">
-                  <label htmlFor="student-count" className="block text-sm font-medium text-gray-700">Number of Students</label>
+                <div className="pz-super-field">
+                  <label htmlFor="student-count">Number of Students</label>
                   <input
                     type="number"
                     id="student-count"
                     value={studentCount}
-                    onChange={(e) => setStudentCount(parseInt(e.target.value))}
-                    placeholder="e.g., 300"
-                    className="mt-1 block w-full rounded-md border-2 border-gray-300 bg-white px-4 py-2.5 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
+                    onChange={(e) => setStudentCount(Number.parseInt(e.target.value, 10) || 0)}
+                    placeholder="e.g. 300"
+                    min={0}
+                  />
+                </div>
+
+                <div className="pz-super-field">
+                  <label htmlFor="school-package">
+                    Package <span className="pz-super-required">*</span>
+                  </label>
+                  <AdminSelect
+                    id="school-package"
+                    value={packageId}
+                    onChange={setPackageId}
+                    options={packageOptions}
+                    className="full"
+                    ariaLabel="Package"
+                  />
+                </div>
+
+                <div className="pz-super-field">
+                  <label htmlFor="school-billing-interval">Billing Interval</label>
+                  <AdminSelect
+                    id="school-billing-interval"
+                    value={billingInterval}
+                    onChange={(value) => setBillingInterval(value as "monthly" | "yearly")}
+                    options={billingOptions}
+                    className="full"
+                    ariaLabel="Billing Interval"
+                    disabled={!packageId}
                   />
                 </div>
               </div>
             </div>
+          </div>
 
-            {/* Footer */}
-            <div className="bg-gray-50 px-6 py-4 flex items-center justify-end gap-x-3 border-t border-gray-200">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 border rounded-md text-gray-700 hover:bg-gray-100"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700 flex items-center"
-              >
-                <CheckCircleIcon className="h-4 w-4 mr-2" />
-                {isEdit ? 'Update School' : 'Add School'}
-              </button>
-            </div>
-          </form>
-        </div>
+          <div className="pz-super-modal-footer">
+            <button type="button" onClick={onClose} className="pz-super-button">
+              Cancel
+            </button>
+            <button type="submit" className="pz-super-button primary">
+              <CheckCircle2 size={15} aria-hidden="true" />
+              {isEdit ? "Update School" : "Add School"}
+            </button>
+          </div>
+        </form>
       </div>
     </div>
   );

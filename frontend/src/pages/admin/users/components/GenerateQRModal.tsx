@@ -1,28 +1,26 @@
-import { useState, useRef, useEffect } from 'react';
-import { XMarkIcon, ClipboardIcon, CheckIcon, ArrowDownTrayIcon } from '@heroicons/react/24/outline';
-import { QRCodeSVG } from 'qrcode.react';
-import Loader from '@/components/Loader';
+import { useEffect, useRef, useState } from "react";
+import { Check, Clipboard, Download, QrCode, X } from "lucide-react";
+import { QRCodeSVG } from "qrcode.react";
 
 interface QRModalProps {
   isOpen: boolean;
   onClose: () => void;
   url: string;
   guardName: string;
+  isLoading?: boolean;
 }
 
-export default function GenerateQRModal({ isOpen, onClose, url, guardName }: QRModalProps) {
+export default function GenerateQRModal({ isOpen, onClose, url, guardName, isLoading = false }: QRModalProps) {
   const [copied, setCopied] = useState(false);
-  const [loading, setLoading] = useState(true);
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const loading = isLoading || !url;
+  const displayUrl = getCompactRegistrationUrl(url);
 
-  // Simulate loading for 1s when modal opens
   useEffect(() => {
     if (isOpen) {
-      setLoading(true);
-      const timer = setTimeout(() => setLoading(false), 1000);
-      return () => clearTimeout(timer);
+      setCopied(false);
     }
-  }, [isOpen]);
+  }, [isOpen, url]);
 
   const handleCopy = async () => {
     try {
@@ -30,7 +28,7 @@ export default function GenerateQRModal({ isOpen, onClose, url, guardName }: QRM
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
     } catch (err) {
-      console.error('Failed to copy:', err);
+      console.error("Failed to copy:", err);
     }
   };
 
@@ -39,10 +37,12 @@ export default function GenerateQRModal({ isOpen, onClose, url, guardName }: QRM
     if (!svg) return;
 
     const svgData = new XMLSerializer().serializeToString(svg);
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d')!;
+    const canvas = document.createElement("canvas");
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
     const img = new Image();
-    const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+    const svgBlob = new Blob([svgData], { type: "image/svg+xml;charset=utf-8" });
     const urlBlob = URL.createObjectURL(svgBlob);
 
     img.onload = () => {
@@ -51,9 +51,9 @@ export default function GenerateQRModal({ isOpen, onClose, url, guardName }: QRM
       ctx.drawImage(img, 0, 0);
       URL.revokeObjectURL(urlBlob);
 
-      const pngUrl = canvas.toDataURL('image/png');
-      const link = document.createElement('a');
-      link.download = `qr_${guardName.replace(/\s+/g, '_')}.png`;
+      const pngUrl = canvas.toDataURL("image/png");
+      const link = document.createElement("a");
+      link.download = `qr_${guardName.replace(/\s+/g, "_")}.png`;
       link.href = pngUrl;
       link.click();
     };
@@ -64,70 +64,81 @@ export default function GenerateQRModal({ isOpen, onClose, url, guardName }: QRM
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
-      {loading ? (
-        <Loader />
-      ) : (
-        <div className="bg-white rounded-xl shadow-2xl max-w-lg w-full p-6 relative">
-          {/* Close */}
-          <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-700">
-            <XMarkIcon className="h-6 w-6" />
+    <div className="pz-user-modal-overlay">
+      <div className="pz-user-modal" role="dialog" aria-modal="true" aria-labelledby="qr-modal-title">
+        <div className="pz-user-modal-head">
+          <div className="pz-user-modal-title-row">
+            <div className="pz-user-modal-icon">
+              <QrCode size={20} aria-hidden="true" />
+            </div>
+            <div>
+              <h2 className="pz-user-modal-title" id="qr-modal-title">
+                Register Device via QR
+              </h2>
+              <div className="pz-user-modal-subtitle">For {guardName}. Scan or copy the secure device link.</div>
+            </div>
+          </div>
+          <button type="button" onClick={onClose} className="pz-user-modal-close" aria-label="Close">
+            <X size={18} aria-hidden="true" />
           </button>
-
-          {/* Header */}
-          <h2 className="text-2xl font-bold text-center mb-2">Register Device via QR</h2>
-          <p className="text-center text-sm text-gray-600 mb-4">
-            For <strong>{guardName}</strong> – scan or use the link below
-          </p>
-
-          {/* QR Code */}
-          <div className="flex flex-col items-center mb-4">
-            <div className="p-3 border rounded-xl shadow-inner bg-white">
-              <QRCodeSVG value={url} size={180} ref={svgRef} />
-            </div>
-            <button
-              onClick={downloadQR}
-              className="mt-2 flex items-center gap-2 text-indigo-600 hover:text-indigo-800 text-sm"
-            >
-              <ArrowDownTrayIcon className="h-4 w-4" />
-              Download PNG
-            </button>
-          </div>
-
-          {/* Link Display + Copy */}
-          <div className="text-center mt-4">
-            <div className="bg-gray-100 px-3 py-2 rounded-lg text-xs text-gray-600 break-words max-h-24 overflow-y-auto">
-              {url}
-            </div>
-            <button
-              onClick={handleCopy}
-              className="mt-2 flex items-center gap-2 mx-auto text-indigo-600 hover:text-indigo-800 text-sm"
-            >
-              {copied ? (
-                <>
-                  <CheckIcon className="h-4 w-4 text-green-600" />
-                  Copied!
-                </>
-              ) : (
-                <>
-                  <ClipboardIcon className="h-4 w-4" />
-                  Copy Link
-                </>
-              )}
-            </button>
-          </div>
-
-          {/* Footer */}
-          <div className="mt-6 text-right">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
-            >
-              Close
-            </button>
-          </div>
         </div>
-      )}
+
+        <div className="pz-user-modal-body">
+          {loading ? (
+            <div className="pz-qr-skeleton" aria-label="Preparing QR code">
+              <div className="pz-qr-skeleton-box">
+                <QrCode size={54} aria-hidden="true" />
+              </div>
+              <div className="pz-qr-skeleton-button" />
+              <div className="pz-qr-skeleton-link">
+                <span />
+                <span />
+              </div>
+              <div className="pz-qr-skeleton-button primary" />
+            </div>
+          ) : (
+            <div className="pz-qr-panel">
+              <div className="pz-qr-box">
+                <QRCodeSVG value={url} size={190} ref={svgRef} />
+              </div>
+              <button type="button" onClick={downloadQR} className="pz-users-button">
+                <Download size={15} aria-hidden="true" />
+                Download PNG
+              </button>
+              <div className="pz-qr-link" title={url}>{displayUrl}</div>
+              <button type="button" onClick={handleCopy} className="pz-users-button primary">
+                {copied ? <Check size={15} aria-hidden="true" /> : <Clipboard size={15} aria-hidden="true" />}
+                {copied ? "Copied" : "Copy Link"}
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="pz-user-modal-footer">
+          <button type="button" onClick={onClose} className="pz-users-button">
+            Close
+          </button>
+        </div>
+      </div>
     </div>
   );
+}
+
+function getCompactRegistrationUrl(url: string) {
+  if (!url) return "";
+
+  try {
+    const parsed = new URL(url);
+    const guardId = parsed.searchParams.get("g") || parsed.searchParams.get("guardId");
+    const token = parsed.searchParams.get("t") || parsed.searchParams.get("token");
+    const compactToken = token && token.length > 24 ? `${token.slice(0, 14)}...${token.slice(-8)}` : token;
+    const compactQuery = [
+      guardId ? `g=${guardId}` : "",
+      compactToken ? `t=${compactToken}` : "",
+    ].filter(Boolean).join("&");
+
+    return `${parsed.origin}${parsed.pathname}${compactQuery ? `?${compactQuery}` : ""}`;
+  } catch {
+    return url.length > 52 ? `${url.slice(0, 34)}...${url.slice(-14)}` : url;
+  }
 }

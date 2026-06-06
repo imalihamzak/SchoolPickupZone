@@ -1,72 +1,122 @@
-import { useEffect, useState } from 'react';
-import { XMarkIcon } from '@heroicons/react/24/outline';
-import axios from 'axios';
-import { toast } from 'react-toastify';
-import { API_BASE_URL } from '@/lib/api/link';
+import { useEffect, useState } from "react";
+import { Car, Info, Plus, UserPlus, X } from "lucide-react";
+import axios from "axios";
+import { toast } from "@/components/ui/toast";
+import { AdminSelect } from "@/components/ui/admin-controls";
+import { API_BASE_URL } from "@/lib/api/link";
+import ParentModalPortal from "./ParentModalPortal";
+
 interface AddGuardianFormProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: any) => void;
 }
 
+const relationOptions = [
+  { value: "", label: "Select Relation" },
+  { value: "Grandparent", label: "Grandparent" },
+  { value: "Aunt", label: "Aunt" },
+  { value: "Uncle", label: "Uncle" },
+  { value: "Family Friend", label: "Family Friend" },
+  { value: "Sibling", label: "Sibling" },
+  { value: "Other", label: "Other" },
+];
+
+const vehicleFields = [
+  { key: "name", label: "Vehicle Name", placeholder: "e.g. BMW X7" },
+  { key: "make", label: "Make", placeholder: "e.g. BMW" },
+  { key: "model", label: "Model", placeholder: "e.g. M60i xDrive" },
+  { key: "color", label: "Color", placeholder: "e.g. Black" },
+  { key: "plate_number", label: "Plate Number", placeholder: "e.g. LUX-786" },
+  { key: "year", label: "Year", placeholder: "e.g. 2024" },
+] as const;
+
 export default function AddGuardianForm({ isOpen, onClose, onSubmit }: AddGuardianFormProps) {
   const [formData, setFormData] = useState({
-    name: '',
-    relation: '',
-    phone: '',
+    name: "",
+    relation: "",
+    phone: "",
     vehicle: {
-      name: '',
-      make: '',
-      model: '',
-      color: '',
-      plate_number: '',
-      year: ''
-    }
+      name: "",
+      make: "",
+      model: "",
+      color: "",
+      plate_number: "",
+      year: "",
+    },
   });
 
   const [errors, setErrors] = useState({
-    name: '',
-    relation: '',
-    phone: '',
+    name: "",
+    relation: "",
+    phone: "",
     vehicle: {
-      name: '',
-      make: '',
-      model: '',
-      color: '',
-      plate_number: '',
-      year: ''
-    }
+      name: "",
+      make: "",
+      model: "",
+      color: "",
+      plate_number: "",
+      year: "",
+    },
   });
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isOpen) {
-      document.body.classList.add('modal-open');
-    } else {
-      document.body.classList.remove('modal-open');
-    }
+    if (!isOpen) return;
+    document.body.classList.add("modal-open");
+    return () => document.body.classList.remove("modal-open");
   }, [isOpen]);
+
+  const resetForm = () => {
+    setFormData({
+      name: "",
+      relation: "",
+      phone: "",
+      vehicle: {
+        name: "",
+        make: "",
+        model: "",
+        color: "",
+        plate_number: "",
+        year: "",
+      },
+    });
+    setErrors({
+      name: "",
+      relation: "",
+      phone: "",
+      vehicle: {
+        name: "",
+        make: "",
+        model: "",
+        color: "",
+        plate_number: "",
+        year: "",
+      },
+    });
+  };
 
   const validateForm = () => {
     const vehicleErrors = {
-      name: formData.vehicle.name ? '' : 'Vehicle name is required',
-      make: formData.vehicle.make ? '' : 'Make is required',
-      model: formData.vehicle.model ? '' : 'Model is required',
-      color: formData.vehicle.color ? '' : 'Color is required',
-      plate_number: formData.vehicle.plate_number ? '' : 'Plate number is required',
-      year: formData.vehicle.year ? '' : 'Year is required'
+      name: formData.vehicle.name ? "" : "Vehicle name is required",
+      make: formData.vehicle.make ? "" : "Make is required",
+      model: formData.vehicle.model ? "" : "Model is required",
+      color: formData.vehicle.color ? "" : "Color is required",
+      plate_number: formData.vehicle.plate_number ? "" : "Plate number is required",
+      year: formData.vehicle.year ? "" : "Year is required",
     };
 
     const newErrors = {
-      name: formData.name ? '' : 'Name is required',
-      relation: formData.relation ? '' : 'Relation is required',
-      phone: formData.phone ? '' : 'Phone number is required',
-      vehicle: vehicleErrors
+      name: formData.name ? "" : "Name is required",
+      relation: formData.relation ? "" : "Relation is required",
+      phone: formData.phone ? "" : "Phone number is required",
+      vehicle: vehicleErrors,
     };
 
     setErrors(newErrors);
 
     const isGuardianValid = !newErrors.name && !newErrors.relation && !newErrors.phone;
-    const isVehicleValid = !Object.values(vehicleErrors).some(err => err);
+    const isVehicleValid = !Object.values(vehicleErrors).some((err) => err);
 
     return isGuardianValid && isVehicleValid;
   };
@@ -79,168 +129,166 @@ export default function AddGuardianForm({ isOpen, onClose, onSubmit }: AddGuardi
       return;
     }
 
+    setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const response = await axios.post(`${API_BASE_URL}/guardians`, {
-        full_name: formData.name,
-        relation: formData.relation,
-        phone: formData.phone,
-        vehicle: formData.vehicle
-      }, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json'
+      const token = localStorage.getItem("token");
+      const response = await axios.post(
+        `${API_BASE_URL}/guardians`,
+        {
+          full_name: formData.name,
+          relation: formData.relation,
+          phone: formData.phone,
+          vehicle: formData.vehicle,
+        },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
         }
-      });
+      );
 
-      toast.success('Guardian added successfully');
+      toast.success("Guardian added successfully");
       onSubmit(response.data);
       onClose();
-      setFormData({
-        name: '',
-        relation: '',
-        phone: '',
-        vehicle: {
-          name: '',
-          make: '',
-          model: '',
-          color: '',
-          plate_number: '',
-          year: ''
-        }
-      });
+      resetForm();
     } catch (err: any) {
       console.error(err);
-      toast.error(err.response?.data?.error || 'Failed to add guardian');
+      toast.error(err.response?.data?.error || "Failed to add guardian");
+    } finally {
+      setLoading(false);
     }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 overflow-y-auto">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-screen overflow-y-auto">
-        <div className="px-6 py-4 border-b flex justify-between items-center">
-          <h2 className="text-xl font-bold text-gray-900">Add Guardian</h2>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
-            <XMarkIcon className="h-6 w-6" />
+    <ParentModalPortal>
+      <div className="pz-parent-modal-overlay">
+      <div className="pz-parent-modal wide" role="dialog" aria-modal="true" aria-labelledby="add-guardian-title">
+        <div className="pz-parent-modal-head">
+          <div className="pz-parent-modal-title-row">
+            <div className="pz-parent-modal-icon">
+              <UserPlus size={20} aria-hidden="true" />
+            </div>
+            <div>
+              <h2 className="pz-parent-modal-title" id="add-guardian-title">
+                Add Guardian
+              </h2>
+              <div className="pz-parent-modal-subtitle">
+                Authorize a trusted pickup contact and connect their vehicle details.
+              </div>
+            </div>
+          </div>
+          <button type="button" onClick={onClose} className="pz-parent-modal-close" aria-label="Close">
+            <X size={18} aria-hidden="true" />
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-6 space-y-6">
-          {/* Guardian Info */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Full Name</label>
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className={`w-full border ${errors.name ? 'border-red-500' : 'border-gray-300'} rounded-lg p-2.5`}
-              placeholder="Guardian's full name"
-            />
-            {errors.name && <p className="mt-1 text-sm text-red-500">{errors.name}</p>}
-          </div>
+        <form onSubmit={handleSubmit} className="pz-parent-form">
+          <div className="pz-parent-modal-body">
+            <div className="pz-parent-form">
+              <div className="pz-parent-field">
+                <label htmlFor="guardian-name">
+                  Full Name <span className="pz-parent-required">*</span>
+                </label>
+                <input
+                  id="guardian-name"
+                  type="text"
+                  value={formData.name}
+                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  className={errors.name ? "error" : ""}
+                  placeholder="Guardian's full name"
+                />
+                {errors.name && <p className="pz-parent-error">{errors.name}</p>}
+              </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Relation to Child</label>
-              <select
-                value={formData.relation}
-                onChange={(e) => setFormData({ ...formData, relation: e.target.value })}
-                className={`w-full border ${errors.relation ? 'border-red-500' : 'border-gray-300'} rounded-lg p-2.5`}
-              >
-                <option value="">Select Relation</option>
-                <option value="Grandparent">Grandparent</option>
-                <option value="Aunt">Aunt</option>
-                <option value="Uncle">Uncle</option>
-                <option value="Family Friend">Family Friend</option>
-                <option value="Sibling">Sibling</option>
-                <option value="Other">Other</option>
-              </select>
-              {errors.relation && <p className="mt-1 text-sm text-red-500">{errors.relation}</p>}
-            </div>
+              <div className="pz-parent-form-grid">
+                <div className="pz-parent-field">
+                  <label htmlFor="guardian-relation">
+                    Relation to Child <span className="pz-parent-required">*</span>
+                  </label>
+                  <AdminSelect
+                    id="guardian-relation"
+                    value={formData.relation}
+                    onChange={(value) => setFormData({ ...formData, relation: value })}
+                    options={relationOptions}
+                    ariaLabel="Guardian relation"
+                    className="full"
+                    invalid={Boolean(errors.relation)}
+                  />
+                  {errors.relation && <p className="pz-parent-error">{errors.relation}</p>}
+                </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number</label>
-              <input
-                type="tel"
-                value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                className={`w-full border ${errors.phone ? 'border-red-500' : 'border-gray-300'} rounded-lg p-2.5`}
-                placeholder="Contact phone number"
-              />
-              {errors.phone && <p className="mt-1 text-sm text-red-500">{errors.phone}</p>}
-            </div>
-          </div>
-
-          {/* Vehicle Info */}
-          <div className="pt-2">
-            <h3 className="text-md font-semibold text-gray-700 mb-2">Vehicle Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {['name', 'make', 'model', 'color', 'plate_number', 'year'].map((field) => (
-                <div key={field}>
-                  <label className="block text-sm font-medium text-gray-700 mb-1 capitalize">
-                    {field.replace('_', ' ')}
+                <div className="pz-parent-field">
+                  <label htmlFor="guardian-phone">
+                    Phone Number <span className="pz-parent-required">*</span>
                   </label>
                   <input
-                    type="text"
-                    value={(formData.vehicle as any)[field]}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        vehicle: { ...formData.vehicle, [field]: e.target.value }
-                      })
-                    }
-                    className={`w-full border ${
-                      (errors.vehicle as any)[field] ? 'border-red-500' : 'border-gray-300'
-                    } rounded-lg p-2.5`}
-                    placeholder={
-                      field === 'name'
-                        ? 'e.g. BMW X7'
-                        : field === 'make'
-                        ? 'e.g. BMW'
-                        : field === 'model'
-                        ? 'e.g. M60i xDrive'
-                        : field === 'color'
-                        ? 'e.g. Black'
-                        : field === 'plate_number'
-                        ? 'e.g. LUX-786, XYZ-1234'
-                        : field === 'year'
-                        ? 'e.g. 2024'
-                        : ''
-                    }
-                    
+                    id="guardian-phone"
+                    type="tel"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                    className={errors.phone ? "error" : ""}
+                    placeholder="Contact phone number"
                   />
-                  {(errors.vehicle as any)[field] && (
-                    <p className="mt-1 text-sm text-red-500">{(errors.vehicle as any)[field]}</p>
-                  )}
+                  {errors.phone && <p className="pz-parent-error">{errors.phone}</p>}
                 </div>
-              ))}
+              </div>
+
+              <div className="pz-parent-section">
+                <h3 className="pz-parent-section-title">
+                  <Car size={16} aria-hidden="true" />
+                  Vehicle Information
+                </h3>
+                <div className="pz-parent-form-grid three">
+                  {vehicleFields.map((field) => (
+                    <div className="pz-parent-field" key={field.key}>
+                      <label htmlFor={`guardian-vehicle-${field.key}`}>
+                        {field.label} <span className="pz-parent-required">*</span>
+                      </label>
+                      <input
+                        id={`guardian-vehicle-${field.key}`}
+                        type={field.key === "year" ? "number" : "text"}
+                        value={formData.vehicle[field.key]}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            vehicle: { ...formData.vehicle, [field.key]: e.target.value },
+                          })
+                        }
+                        className={errors.vehicle[field.key] ? "error" : ""}
+                        placeholder={field.placeholder}
+                      />
+                      {errors.vehicle[field.key] && (
+                        <p className="pz-parent-error">{errors.vehicle[field.key]}</p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pz-parent-note">
+                <Info size={16} aria-hidden="true" />
+                <span>
+                  This guardian will be authorized for pickup and can receive a QR code through the existing flow.
+                </span>
+              </div>
             </div>
           </div>
 
-          <p className="text-sm text-gray-500 mt-4">
-            By adding a guardian, you authorize this person to pick up your children from school.
-            They will receive a QR code that can be scanned at pickup time.
-          </p>
-
-          <div className="flex justify-end gap-4 pt-4 border-t">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
-            >
+          <div className="pz-parent-modal-footer">
+            <button type="button" onClick={onClose} className="pz-parent-modal-button">
               Cancel
             </button>
-            <button
-              type="submit"
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700"
-            >
-              Add Guardian
+            <button type="submit" disabled={loading} className="pz-parent-modal-button primary">
+              <Plus size={15} aria-hidden="true" />
+              {loading ? "Adding..." : "Add Guardian"}
             </button>
           </div>
         </form>
       </div>
-    </div>
+      </div>
+    </ParentModalPortal>
   );
 }

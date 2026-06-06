@@ -19,9 +19,10 @@ export default function Header() {
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex gap-8 text-gray-300 font-medium">
-          <a href="#features" className="hover:text-blue-400 transition-colors duration-200">Features</a>
-          <a href="#how-it-works" className="hover:text-blue-400 transition-colors duration-200">How It Works</a>
-          <a href="#contact" className="hover:text-blue-400 transition-colors duration-200">Contact</a>
+          <Link to="/features" className="hover:text-blue-400 transition-colors duration-200">Features</Link>
+          <Link to="/pricing" className="hover:text-blue-400 transition-colors duration-200">Pricing</Link>
+          <Link to="/about" className="hover:text-blue-400 transition-colors duration-200">About</Link>
+          <Link to="/contact" className="hover:text-blue-400 transition-colors duration-200">Contact</Link>
         </nav>
 
         {/* Login Button */}
@@ -46,9 +47,10 @@ export default function Header() {
       {isOpen && (
         <div className="md:hidden px-6 pb-6">
           <nav className="flex flex-col gap-4 bg-gray-800 rounded-lg p-4 shadow-lg border border-gray-700 text-gray-300 text-base font-medium">
-            <a href="#features" onClick={() => setIsOpen(false)} className="hover:text-blue-400 py-2">Features</a>
-            <a href="#how-it-works" onClick={() => setIsOpen(false)} className="hover:text-blue-400 py-2">How It Works</a>
-            <a href="#contact" onClick={() => setIsOpen(false)} className="hover:text-blue-400 py-2">Contact</a>
+            <Link to="/features" onClick={() => setIsOpen(false)} className="hover:text-blue-400 py-2">Features</Link>
+            <Link to="/pricing" onClick={() => setIsOpen(false)} className="hover:text-blue-400 py-2">Pricing</Link>
+            <Link to="/about" onClick={() => setIsOpen(false)} className="hover:text-blue-400 py-2">About</Link>
+            <Link to="/contact" onClick={() => setIsOpen(false)} className="hover:text-blue-400 py-2">Contact</Link>
             <Link to="/login">
               <button onClick={() => setIsOpen(false)} className="bg-blue-600 hover:bg-blue-700 text-white w-full py-3 rounded-lg font-semibold transition-all duration-200 mt-2">
                 Login

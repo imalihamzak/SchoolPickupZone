@@ -1,0 +1,125 @@
+.pz-payment-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    linear-gradient(135deg, rgba(225, 245, 238, 0.92), rgba(244, 246, 250, 0.98)),
+    #F4F6FA;
+  color: #0A1628;
+  font-family: "DM Sans", "Segoe UI", Arial, sans-serif;
+}
+
+.pz-payment-card {
+  width: min(100%, 460px);
+  background: #FFFFFF;
+  border: 1px solid #E2E6EE;
+  border-radius: 14px;
+  box-shadow: 0 18px 48px rgba(7, 29, 59, 0.14);
+  padding: 34px 32px;
+  text-align: center;
+}
+
+.pz-payment-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #1A9E75;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+  margin-bottom: 18px;
+}
+
+.pz-payment-kicker::before {
+  content: "";
+  width: 18px;
+  height: 2px;
+  border-radius: 999px;
+  background: #1A9E75;
+}
+
+.pz-payment-icon {
+  width: 68px;
+  height: 68px;
+  margin: 0 auto 20px;
+  border-radius: 18px;
+  display: grid;
+  place-items: center;
+}
+
+.pz-payment-icon svg {
+  width: 36px;
+  height: 36px;
+}
+
+.pz-payment-icon.success {
+  color: #1A9E75;
+  background: #E1F5EE;
+}
+
+.pz-payment-icon.warning {
+  color: #EF9F27;
+  background: #FEF3DC;
+}
+
+.pz-payment-card h1 {
+  margin: 0 0 10px;
+  color: #071D3B;
+  font-family: "Inter", "Segoe UI", Arial, sans-serif;
+  font-size: 28px;
+  line-height: 1.1;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+
+.pz-payment-card p {
+  margin: 0 auto;
+  max-width: 360px;
+  color: #4A5568;
+  font-size: 15px;
+  line-height: 1.65;
+}
+
+.pz-payment-progress {
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #EBEEF5;
+  margin: 24px 0 18px;
+}
+
+.pz-payment-progress span {
+  display: block;
+  height: 100%;
+  width: 62%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #1A9E75, #1B6ECC);
+  animation: pz-payment-progress 1.4s ease-in-out infinite alternate;
+}
+
+.pz-payment-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 0 18px;
+  border-radius: 8px;
+  background: #1A9E75;
+  color: #FFFFFF;
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+@keyframes pz-payment-progress {
+  from {
+    transform: translateX(-35%);
+  }
+
+  to {
+    transform: translateX(75%);
+  }
+}

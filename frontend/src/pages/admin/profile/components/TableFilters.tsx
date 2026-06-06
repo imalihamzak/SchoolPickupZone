@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { MagnifyingGlassIcon, FunnelIcon } from '@heroicons/react/24/outline';
+import { AdminSelect } from '@/components/ui/admin-controls';
 
 interface FiltersProps {
   onSearch: (value: string) => void;
@@ -26,6 +27,25 @@ export default function TableFilters({ onSearch, onFilter }: FiltersProps) {
     onFilter(newFilters);
   };
 
+  const statusOptions = [
+    { value: '', label: 'Status' },
+    { value: 'active', label: 'Active' },
+    { value: 'pending', label: 'Pending' },
+    { value: 'inactive', label: 'Inactive' },
+  ];
+  const gradeOptions = [
+    { value: '', label: 'Grade' },
+    { value: '1', label: 'Grade 1' },
+    { value: '2', label: 'Grade 2' },
+    { value: '3', label: 'Grade 3' },
+  ];
+  const familySizeOptions = [
+    { value: '', label: 'Family Size' },
+    { value: 'small', label: 'Small (2-3)' },
+    { value: 'medium', label: 'Medium (4-5)' },
+    { value: 'large', label: 'Large (6+)' },
+  ];
+
   return (
     <div className="bg-white p-4 rounded-lg shadow-sm space-y-4">
       <div className="flex flex-col sm:flex-row gap-4">
@@ -50,38 +70,29 @@ export default function TableFilters({ onSearch, onFilter }: FiltersProps) {
 
       {showFilters && (
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t">
-          <select
+          <AdminSelect
             value={filters.status}
-            onChange={(e) => handleFilterChange('status', e.target.value)}
-            className="border border-gray-300 rounded-lg p-2"
-          >
-            <option value="">Status</option>
-            <option value="active">Active</option>
-            <option value="pending">Pending</option>
-            <option value="inactive">Inactive</option>
-          </select>
+            onChange={(value) => handleFilterChange('status', value)}
+            options={statusOptions}
+            className="full"
+            ariaLabel="Status filter"
+          />
 
-          <select
+          <AdminSelect
             value={filters.grade}
-            onChange={(e) => handleFilterChange('grade', e.target.value)}
-            className="border border-gray-300 rounded-lg p-2"
-          >
-            <option value="">Grade</option>
-            <option value="1">Grade 1</option>
-            <option value="2">Grade 2</option>
-            <option value="3">Grade 3</option>
-          </select>
+            onChange={(value) => handleFilterChange('grade', value)}
+            options={gradeOptions}
+            className="full"
+            ariaLabel="Grade filter"
+          />
 
-          <select
+          <AdminSelect
             value={filters.membersCount}
-            onChange={(e) => handleFilterChange('membersCount', e.target.value)}
-            className="border border-gray-300 rounded-lg p-2"
-          >
-            <option value="">Family Size</option>
-            <option value="small">Small (2-3)</option>
-            <option value="medium">Medium (4-5)</option>
-            <option value="large">Large (6+)</option>
-          </select>
+            onChange={(value) => handleFilterChange('membersCount', value)}
+            options={familySizeOptions}
+            className="full"
+            ariaLabel="Family size filter"
+          />
         </div>
       )}
     </div>

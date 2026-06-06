@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { XMarkIcon, PlusIcon, TrashIcon, DocumentIcon } from "@heroicons/react/24/outline";
 import type { Family, Document } from "../types";
+import { AdminSelect } from "@/components/ui/admin-controls";
 
 interface CreateFamilyFormProps {
   isOpen: boolean;
@@ -26,6 +27,28 @@ const defaultFamily: Omit<Family, "id" | "submittedAt" | "status"> = {
   children: [{ name: "", age: "", grade: "", medical: "" }],
   documents: [],
 };
+
+const relationOptions = [
+  { value: "", label: "Select Relation" },
+  { value: "Grandparent", label: "Grandparent" },
+  { value: "Aunt", label: "Aunt" },
+  { value: "Uncle", label: "Uncle" },
+  { value: "Family Friend", label: "Family Friend" },
+  { value: "Sibling", label: "Sibling" },
+  { value: "Other", label: "Other" },
+];
+
+const gradeOptions = [
+  { value: "", label: "Select Grade" },
+  { value: "1", label: "Grade 1" },
+  { value: "2", label: "Grade 2" },
+  { value: "3", label: "Grade 3" },
+  { value: "4", label: "Grade 4" },
+  { value: "5", label: "Grade 5" },
+  { value: "5", label: "Grade 6" },
+  { value: "5", label: "Grade 7" },
+  { value: "5", label: "Grade 8" },
+];
 
 export default function CreateFamilyForm({
   isOpen,
@@ -409,22 +432,14 @@ export default function CreateFamilyForm({
                           : "border-gray-300"
                         }`}
                     />
-                    <select
+                    <AdminSelect
                       value={guardian.relation}
-                      onChange={(e) => updateGuardian(index, "relation", e.target.value)}
-                      className={`border rounded-lg p-2.5 w-full ${errors[`guardian${index}`]?.includes("Relation is required")
-                          ? "border-red-500"
-                          : "border-gray-300"
-                        }`}
-                    >
-                      <option value="">Select Relation</option>
-                      <option value="Grandparent">Grandparent</option>
-                      <option value="Aunt">Aunt</option>
-                      <option value="Uncle">Uncle</option>
-                      <option value="Family Friend">Family Friend</option>
-                      <option value="Sibling">Sibling</option>
-                      <option value="Other">Other</option>
-                    </select>
+                      onChange={(value) => updateGuardian(index, "relation", value)}
+                      options={relationOptions}
+                      className="full"
+                      ariaLabel="Guardian relation"
+                      invalid={errors[`guardian${index}`]?.includes("Relation is required")}
+                    />
 
                     <div className="flex gap-2">
                       <input
@@ -549,26 +564,14 @@ export default function CreateFamilyForm({
                       }
                       className="border border-gray-300 rounded-lg p-2.5"
                     />
-                    <select
+                    <AdminSelect
                       value={child.grade}
-                      onChange={(e) =>
-                        updateChild(index, "grade", e.target.value)
-                      }
-                      className={`border rounded-lg p-2.5 ${errors[`child${index}`]?.includes("Grade is required")
-                          ? "border-red-500"
-                          : "border-gray-300"
-                        }`}
-                    >
-                      <option value="">Select Grade</option>
-                      <option value="1">Grade 1</option>
-                      <option value="2">Grade 2</option>
-                      <option value="3">Grade 3</option>
-                      <option value="4">Grade 4</option>
-                      <option value="5">Grade 5</option>
-                      <option value="5">Grade 6</option>
-                      <option value="5">Grade 7</option>
-                      <option value="5">Grade 8</option>
-                    </select>
+                      onChange={(value) => updateChild(index, "grade", value)}
+                      options={gradeOptions}
+                      className="full"
+                      ariaLabel="Child grade"
+                      invalid={errors[`child${index}`]?.includes("Grade is required")}
+                    />
                     <div className="flex gap-2">
                       {formData.children.length > 1 && (
                         <button

@@ -1,6 +1,8 @@
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
+const { buildClientUrl, buildEmailTemplate } = require('./emailTemplate');
+
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST,
   port: process.env.EMAIL_PORT,
@@ -11,55 +13,115 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-exports.sendSubscriptionEmail = async (to, adminName, planName, amount, nextBillingDate) => {
-  const formattedDate = new Date(nextBillingDate).toLocaleDateString("en-US", {
+const formatDate = (value) => {
+  if (!value) return 'Not available';
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Not available';
+  return date.toLocaleDateString('en-US', {
     weekday: 'long',
     year: 'numeric',
     month: 'long',
     day: 'numeric',
   });
+};
 
-  const html = `
-    <div style="max-width: 600px; margin: auto; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
-      <div style="background-color: #4f46e5; color: white; padding: 20px; text-align: center;">
-        <h2 style="margin: 0;">🎉 Subscription Successful!</h2>
-        <p style="margin: 5px 0;">Welcome to <strong>PickupZone</strong></p>
-      </div>
-      <div style="padding: 30px; background-color: #ffffff;">
-        <p style="font-size: 16px;">Dear <strong>${adminName}</strong>,</p>
-        <p style="font-size: 15px; color: #374151;">
-          We're excited to inform you that your subscription to the <strong>${planName}</strong> plan has been successfully activated.
-        </p>
-        <table style="width: 100%; margin: 20px 0; font-size: 14px; border-collapse: collapse;">
-          <tr>
-            <td style="padding: 8px 0; color: #6b7280;">Amount Paid:</td>
-            <td style="padding: 8px 0; font-weight: bold; color: #111827;">$${amount}</td>
-          </tr>
-          <tr>
-            <td style="padding: 8px 0; color: #6b7280;">Next Billing Date:</td>
-            <td style="padding: 8px 0; font-weight: bold; color: #111827;">${formattedDate}</td>
-          </tr>
-        </table>
-        <p style="font-size: 14px; color: #4b5563;">
-          If you have any questions or need assistance, feel free to reach out to our support team.
-        </p>
-        <p style="font-size: 14px; color: #4b5563;">
-          Thank you for choosing PickupZone!
-        </p>
-        <div style="margin-top: 30px; text-align: center;">
-          <a href="${process.env.CLIENT_URL}" style="background-color: #4f46e5; color: white; text-decoration: none; padding: 12px 20px; border-radius: 6px; font-weight: bold;">Visit Dashboard</a>
-        </div>
-      </div>
-      <div style="background-color: #f3f4f6; color: #6b7280; font-size: 12px; text-align: center; padding: 15px;">
-        © ${new Date().getFullYear()} PickupZone. All rights reserved.
-      </div>
-    </div>
-  `;
+const formatMoney = (value) => `$${Number(value || 0).toFixed(2)}`;
+
+const dashboardUrl = () => buildClientUrl('/');
+
+exports.sendSubscriptionEmail = async (to, adminName, planName, amount, nextBillingDate) => {
+  const html = buildEmailTemplate({
+    title: 'Subscription Active',
+    subtitle: 'Your PickupZone package is ready to use.',
+    greeting: `Hi ${adminName || 'there'},`,
+    paragraphs: [
+      `Your subscription to the ${planName || 'selected'} package has been activated successfully.`,
+      'You can now manage school pickup operations from your PickupZone dashboard.',
+    ],
+    rows: [
+      { label: 'Package', value: planName || 'Selected package' },
+      { label: 'Amount Paid', value: formatMoney(amount) },
+      { label: 'Next Billing Date', value: formatDate(nextBillingDate) },
+    ],
+    actionUrl: dashboardUrl(),
+    actionLabel: 'Open Dashboard',
+    tone: 'teal',
+  });
 
   await transporter.sendMail({
     from: `"PickupZone" <${process.env.EMAIL_USER}>`,
     to,
-    subject: `🎉 Your PickupZone Subscription is Active!`,
+    subject: 'Your PickupZone subscription is active',
+    html,
+  });
+};
+
+exports.sendBillingReminderEmail = async ({
+  to,
+  adminName,
+  schoolName,
+  planName,
+  amountDue,
+  dueAt,
+  invoiceUrl,
+}) => {
+  const html = buildEmailTemplate({
+    title: 'Upcoming Payment Reminder',
+    subtitle: 'A scheduled PickupZone payment is coming due.',
+    greeting: `Hi ${adminName || 'there'},`,
+    paragraphs: [
+      `Your upcoming PickupZone payment for ${schoolName || 'your school'} is coming due soon.`,
+    ],
+    rows: [
+      { label: 'Package', value: planName || 'Current package' },
+      { label: 'Amount Due', value: formatMoney(amountDue) },
+      { label: 'Due Date', value: formatDate(dueAt) },
+    ],
+    actionUrl: invoiceUrl || dashboardUrl(),
+    actionLabel: invoiceUrl ? 'View Invoice' : 'Open Dashboard',
+    notice: 'Keeping billing current helps avoid service interruption for the school.',
+    tone: 'amber',
+  });
+
+  await transporter.sendMail({
+    from: `"PickupZone" <${process.env.EMAIL_USER}>`,
+    to,
+    subject: 'PickupZone payment reminder',
+    html,
+  });
+};
+
+exports.sendPaymentRetryEmail = async ({
+  to,
+  adminName,
+  schoolName,
+  planName,
+  amountDue,
+  nextRetryAt,
+  invoiceUrl,
+}) => {
+  const html = buildEmailTemplate({
+    title: 'Payment Retry Scheduled',
+    subtitle: 'We could not complete the latest PickupZone payment.',
+    greeting: `Hi ${adminName || 'there'},`,
+    paragraphs: [
+      `The latest PickupZone payment for ${schoolName || 'your school'} failed. We have scheduled another retry.`,
+      'Please review the invoice or payment method before the next retry attempt.',
+    ],
+    rows: [
+      { label: 'Package', value: planName || 'Current package' },
+      { label: 'Amount Due', value: formatMoney(amountDue) },
+      { label: 'Next Retry', value: formatDate(nextRetryAt) },
+    ],
+    actionUrl: invoiceUrl || dashboardUrl(),
+    actionLabel: invoiceUrl ? 'Review Invoice' : 'Open Dashboard',
+    tone: 'red',
+  });
+
+  await transporter.sendMail({
+    from: `"PickupZone" <${process.env.EMAIL_USER}>`,
+    to,
+    subject: 'PickupZone payment failed - retry scheduled',
     html,
   });
 };

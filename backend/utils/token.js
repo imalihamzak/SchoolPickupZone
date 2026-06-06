@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 
 exports.generateDeviceToken = (guardId) => {
   return jwt.sign(
-    { guard_id: guardId, purpose: 'register_device' },
+    { g: guardId, p: 'rd' },
     process.env.JWT_SECRET,
     { expiresIn: '15m' }
   );

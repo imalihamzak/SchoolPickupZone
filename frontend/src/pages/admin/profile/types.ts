@@ -1,23 +1,30 @@
+import type { DocumentVerificationStatus } from "@/lib/documentVerification";
+
 export interface Document {
   id?: string;
   name: string;
+  documentType?: string;
   type: string;
   size?: number;
   url?: string;
-  file_path?: string; // ✅ Add this line
-  status?: 'verified' | 'rejected' | 'pending';
+  file_path?: string;
+  status?: "verified" | "rejected" | "pending";
+  childId?: string | number | null;
+  required?: boolean;
+  rejectionReason?: string | null;
   file?: File;
 }
 
 export interface Family {
   id?: string;
   familyName: string;
-  status: 'Active' | 'Pending' | 'Inactive';
+  status: "Active" | "Pending" | "Inactive";
   submittedAt: string;
   parent: Parent;
   guardians: Guardian[];
   children: Child[];
   documents?: Document[];
+  documentVerification?: DocumentVerificationStatus;
 }
 
 export interface Parent {

@@ -1,11 +1,11 @@
 // components/Loader.tsx
 import React from 'react';
-import '../index.css';
+import LoadingSpinner from './ui/LoadingSpinner';
 
 const Loader: React.FC = () => {
   return (
     <div className="flex justify-center items-center py-10">
-      <span className="loader"></span>
+      <LoadingSpinner size="lg" label="Loading" />
     </div>
   );
 };

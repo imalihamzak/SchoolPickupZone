@@ -2,6 +2,23 @@ import { useState, useEffect } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { Notification } from '@/components/shared/notifications/NotificationPanel';
 import {API_BASE_URL, LOCAL_BASE} from "../api/link";
+import { playNotificationSound } from '@/lib/notifications/notificationSound';
+
+const getUserIdFromToken = () => {
+  const token = localStorage.getItem('token');
+  if (!token) return null;
+
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+    const base64Payload = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const normalizedPayload = `${base64Payload}${'='.repeat((4 - (base64Payload.length % 4)) % 4)}`;
+    const decoded = JSON.parse(window.atob(normalizedPayload));
+    return decoded?.id ? String(decoded.id) : null;
+  } catch {
+    return null;
+  }
+};
 
 export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -9,10 +26,40 @@ export function useNotifications() {
   const [fadingIds, setFadingIds] = useState<string[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
 
+  useEffect(() => {
+    setUnreadCount(notifications.filter(notification => !notification.read).length);
+  }, [notifications]);
+
+  const addIncomingNotification = (incoming?: Partial<Notification>) => {
+    if (!incoming?.id || !incoming.type || !incoming.title || !incoming.message) return;
+
+    const notification = {
+      id: String(incoming.id),
+      type: incoming.type,
+      title: incoming.title,
+      message: incoming.message,
+      timestamp: incoming.timestamp || new Date().toISOString(),
+      read: Boolean(incoming.read),
+    } as Notification;
+
+    setNotifications(current => {
+      if (current.some(item => item.id === notification.id)) return current;
+      return [notification, ...current];
+    });
+  };
+
   const fetchLatestNotifications = () => {
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setNotifications([]);
+      setUnreadCount(0);
+      setLoading(false);
+      return;
+    }
+
     fetch(`${API_BASE_URL}/notifications`, {
       headers: {
-        Authorization: `Bearer ${localStorage.getItem('token')}`,
+        Authorization: `Bearer ${token}`,
       },
     })
       .then(res => res.json())
@@ -22,8 +69,6 @@ export function useNotifications() {
           setUnreadCount(data.filter(n => !n.read).length);
         } else {
           console.error('Expected array of notifications but got:', data);
-          setNotifications([]);
-          setUnreadCount(0);
         }
         setLoading(false);
       })
@@ -35,21 +80,20 @@ export function useNotifications() {
 
   useEffect(() => {
     const socket: Socket = io(`${LOCAL_BASE}`);
-    socket.emit('register_admin', 'admin');
-
-    const audio = new Audio('/sounds/notification.mp3');
-    audio.load();
+    const userId = getUserIdFromToken();
+    if (userId) {
+      socket.emit('register_admin', userId);
+    }
 
     // 🔁 Fetch existing notifications
     fetchLatestNotifications();
 
     // 🔁 Listen for new ones from socket
-    socket.on('pickup_event', () => {
-      audio.play().catch(err => {
-        console.warn('Notification sound failed:', err);
-      });
+    socket.on('pickup_event', (payload?: Partial<Notification>) => {
+      playNotificationSound(userId);
 
       // ⬇️ Re-fetch the latest list
+      addIncomingNotification(payload);
       fetchLatestNotifications();
     });
 
@@ -68,7 +112,7 @@ export function useNotifications() {
       setNotifications(current =>
         current.map(n => (n.id === id ? { ...n, read: true } : n))
       );
-      setUnreadCount(current => current - 1);
+      setUnreadCount(current => Math.max(0, current - 1));
 
       setFadingIds(current => [...current, id]);
       setTimeout(() => {

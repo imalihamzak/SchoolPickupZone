@@ -1,18 +1,19 @@
-// const API_BASE_URL = 'http://localhost:5000/api';
-// const LOCAL_BASE = 'http://localhost:5000';
-// // const LAN_API_BASE = 'http://192.168.100.63:5000/api';
-// const LAN_API_BASE = 'http://localhost:5000/api';
+const trimTrailingSlash = (value: string) => value.trim().replace(/\/+$/, "");
 
+const isProductionBuild = import.meta.env.PROD;
 
-// export { API_BASE_URL, LOCAL_BASE, LAN_API_BASE };
+const configuredApiBase = isProductionBuild
+  ? import.meta.env.VITE_PRODUCTION_API_BASE_URL || import.meta.env.VITE_API_BASE_URL
+  : import.meta.env.VITE_LOCAL_API_BASE_URL || import.meta.env.VITE_API_BASE_URL;
 
+const configuredApiOrigin = isProductionBuild
+  ? import.meta.env.VITE_PRODUCTION_API_ORIGIN || import.meta.env.VITE_API_ORIGIN
+  : import.meta.env.VITE_LOCAL_API_ORIGIN || import.meta.env.VITE_API_ORIGIN;
 
-
-
-// config.js (for production)
-
-const API_BASE_URL = 'https://api.pickupzone.org/api';      
-const LOCAL_BASE = 'https://api.pickupzone.org';           
-const LAN_API_BASE = 'https://api.pickupzone.org/api';
+const API_BASE_URL = trimTrailingSlash(configuredApiBase || "/api");
+const LOCAL_BASE = trimTrailingSlash(
+  configuredApiOrigin || API_BASE_URL.replace(/\/api$/, "")
+);
+const LAN_API_BASE = API_BASE_URL;
 
 export { API_BASE_URL, LOCAL_BASE, LAN_API_BASE };

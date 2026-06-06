@@ -1,6 +1,8 @@
 const nodemailer = require('nodemailer');
 require('dotenv').config();
 
+const { buildClientUrl, buildEmailTemplate } = require('./emailTemplate');
+
 const transporter = nodemailer.createTransport({
   host: process.env.EMAIL_HOST,
   port: process.env.EMAIL_PORT,
@@ -11,47 +13,101 @@ const transporter = nodemailer.createTransport({
   },
 });
 
-exports.sendResetEmail = (toEmail, token) => {
-  const resetLink = `${process.env.CLIENT_URL}/reset-password?token=${token}`;
+exports.sendResetEmail = async (toEmail, token) => {
+  const resetLink = buildClientUrl(`/reset-password?token=${encodeURIComponent(token)}`);
 
-  const html = `
-    <div style="max-width: 600px; margin: auto; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
-      <div style="background-color: #4f46e5; color: white; padding: 20px; text-align: center;">
-        <h2 style="margin: 0;">🔒 Reset Your Password</h2>
-        <p style="margin: 5px 0;">Secure access to your PickupZone account</p>
-      </div>
-      <div style="padding: 30px; background-color: #ffffff;">
-        <p style="font-size: 16px;">Hello,</p>
-        <p style="font-size: 15px; color: #374151;">
-          We received a request to reset the password associated with your account.
-        </p>
-        <p style="font-size: 15px; color: #374151;">
-          Click the button below to proceed with resetting your password:
-        </p>
-        <div style="margin: 20px 0; text-align: center;">
-          <a href="${resetLink}" style="background-color: #4f46e5; color: white; text-decoration: none; padding: 12px 20px; border-radius: 6px; font-weight: bold; display: inline-block;">
-            Reset Password
-          </a>
-        </div>
-        <p style="font-size: 14px; color: #6b7280;">
-          This link will expire in <strong>15 minutes</strong>. If you didn't request this, you can safely ignore the message.
-        </p>
-        <p style="font-size: 14px; color: #4b5563; margin-top: 30px;">
-          Best regards,<br/><strong>PickupZone Team</strong>
-        </p>
-      </div>
-      <div style="background-color: #f3f4f6; color: #6b7280; font-size: 12px; text-align: center; padding: 15px;">
-        © ${new Date().getFullYear()} PickupZone. All rights reserved.
-      </div>
-    </div>
-  `;
-
-  transporter.sendMail({
-    from: `"PickupZone" <${process.env.EMAIL_USER}>`,
-    to: toEmail,
-    subject: '🔐 Reset Your Password | PickupZone',
-    html,
-  }).catch((err) => {
-    console.error(`❌ Failed to send reset email to ${toEmail}:`, err.message);
+  const html = buildEmailTemplate({
+    title: 'Reset Your Password',
+    subtitle: 'Secure access for your PickupZone account.',
+    greeting: 'Hello,',
+    paragraphs: [
+      'We received a request to reset the password for your PickupZone account.',
+      'Use the button below to choose a new password.',
+    ],
+    actionUrl: resetLink,
+    actionLabel: 'Reset Password',
+    notice: 'This link expires in 15 minutes. If you did not request this reset, you can safely ignore this email.',
+    tone: 'blue',
   });
+
+  try {
+    await transporter.sendMail({
+      from: `"PickupZone" <${process.env.EMAIL_USER}>`,
+      to: toEmail,
+      subject: 'Reset your PickupZone password',
+      html,
+    });
+  } catch (err) {
+    console.error(`Failed to send reset email to ${toEmail}:`, err.message);
+    throw err;
+  }
+};
+
+exports.sendSetPasswordEmail = async (toEmail, token, options = {}) => {
+  const setupLink = buildClientUrl(
+    `/set-new-password?email=${encodeURIComponent(toEmail)}&token=${encodeURIComponent(token)}`
+  );
+  const roleLabel = options.role === 'guard' ? 'guard' : 'parent';
+  const schoolName = options.schoolName || 'your school';
+  const greetingName = [options.firstName, options.lastName].filter(Boolean).join(' ').trim();
+
+  const html = buildEmailTemplate({
+    title: 'Set Your PickupZone Password',
+    subtitle: `Secure access for ${schoolName}.`,
+    greeting: greetingName ? `Hello ${greetingName},` : 'Hello,',
+    paragraphs: [
+      `A school admin created your PickupZone ${roleLabel} account.`,
+      'Use the button below to set your password and activate your account.',
+    ],
+    rows: [
+      { label: 'School', value: schoolName },
+      { label: 'Account type', value: roleLabel.charAt(0).toUpperCase() + roleLabel.slice(1) },
+    ],
+    actionUrl: setupLink,
+    actionLabel: 'Set Password',
+    notice: 'This link expires in 24 hours. If you were not expecting this account, contact the school office.',
+    tone: 'teal',
+  });
+
+  try {
+    await transporter.sendMail({
+      from: `"PickupZone" <${process.env.EMAIL_USER}>`,
+      to: toEmail,
+      subject: 'Set your PickupZone password',
+      html,
+    });
+  } catch (err) {
+    console.error(`Failed to send password setup email to ${toEmail}:`, err.message);
+    throw err;
+  }
+};
+
+exports.sendEmailVerificationCode = async (toEmail, code, options = {}) => {
+  const greetingName = [options.firstName, options.lastName].filter(Boolean).join(' ').trim();
+  const html = buildEmailTemplate({
+    title: 'Verify Your Email',
+    subtitle: 'Confirm your PickupZone profile email change.',
+    greeting: greetingName ? `Hello ${greetingName},` : 'Hello,',
+    paragraphs: [
+      'Use this verification code to confirm your new email address.',
+      'Enter the code on your profile settings screen before saving the email change.',
+    ],
+    rows: [
+      { label: 'Verification code', value: code },
+    ],
+    notice: 'This code expires in 10 minutes. If you did not request this change, keep your current email and contact support.',
+    tone: 'blue',
+  });
+
+  try {
+    await transporter.sendMail({
+      from: `"PickupZone" <${process.env.EMAIL_USER}>`,
+      to: toEmail,
+      subject: 'Verify your PickupZone email',
+      html,
+    });
+  } catch (err) {
+    console.error(`Failed to send email verification code to ${toEmail}:`, err.message);
+    throw err;
+  }
 };
